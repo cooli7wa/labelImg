@@ -40,6 +40,7 @@ from libs.labelFile import LabelFile, LabelFileError
 from libs.toolBar import ToolBar
 from libs.pascal_voc_io import PascalVocReader
 from libs.pascal_voc_io import XML_EXT
+from libs.pascal_voc_io import XML_EXT
 from libs.yolo_io import YoloReader
 from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
@@ -398,9 +399,12 @@ class MainWindow(QMainWindow, WindowMixin):
             action('&Move here', self.moveShape)))
 
         self.tools = self.toolbar('Tools')
+        # self.actions.beginner = (
+        #     open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, save_format, None, create, copy, delete, None,
+        #     zoomIn, zoom, zoomOut, fitWindow, fitWidth)
         self.actions.beginner = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, save_format, None, create, copy, delete, None,
-            zoomIn, zoom, zoomOut, fitWindow, fitWidth)
+            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, None, create, edit, copy, delete, None,
+            fitWindow, fitWidth)
 
         self.actions.advanced = (
             open, opendir, changeSavedir, openNextImg, openPrevImg, save, save_format, None,
@@ -600,6 +604,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     ## Callbacks ##
     def showTutorialDialog(self):
+        subprocess.Popen(self.screencastViewer + [self.screencast])
         subprocess.Popen(self.screencastViewer + [self.screencast])
 
     def showInfoDialog(self):
@@ -862,9 +867,13 @@ class MainWindow(QMainWindow, WindowMixin):
             self.canvas.resetAllLines()
 
     def scrollRequest(self, delta, orientation):
-        units = - delta / (8 * 15)
+        units = - delta
         bar = self.scrollBars[orientation]
-        bar.setValue(bar.value() + bar.singleStep() * units)
+        cur_max = max([bar.maximum() for bar in self.scrollBars.values()])
+        value = int(bar.value() + units * cur_max / 2000)
+        value = min(value, bar.maximum())
+        value = max(value, 0)
+        bar.setValue(value)
 
     def setZoom(self, value):
         self.actions.fitWidth.setChecked(False)

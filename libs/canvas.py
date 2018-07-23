@@ -42,9 +42,12 @@ class Canvas(QWidget):
         self.selectedShape = None  # save the selected shape here
         self.selectedShapeCopy = None
         self.drawingLineColor = QColor(0, 0, 255)
-        self.drawingRectColor = QColor(0, 0, 255) 
+        # self.drawingRectColor = QColor(0, 0, 255)
+        self.drawingRectColor = QColor(0, 0, 0, 0)
+        self.drawingRectPen = QPen(self.drawingRectColor, 0)
         self.line = Shape(line_color=self.drawingLineColor)
         self.prevPoint = QPointF()
+        self.prevPointDragImage = QPointF()
         self.offsets = QPointF(), QPointF()
         self.scale = 1.0
         self.pixmap = QPixmap()
@@ -110,6 +113,25 @@ class Canvas(QWidget):
             self.parent().window().labelCoordinates.setText(
                 'X: %d; Y: %d' % (pos.x(), pos.y()))
 
+        # Drag image.
+        if Qt.RightButton & ev.buttons():
+            pos_global = QCursor().pos()
+            pos_delta = pos_global - self.prevPointDragImage
+            x_delta = pos_delta.x()
+            y_delta = pos_delta.y()
+            self.prevPointDragImage = pos_global
+            x_delta and self.scrollRequest.emit(x_delta, Qt.Horizontal)
+            y_delta and self.scrollRequest.emit(y_delta, Qt.Vertical)
+
+            # if self.selectedShapeCopy and self.prevPoint:
+            #     self.overrideCursor(CURSOR_MOVE)
+            #     self.boundedMoveShape(self.selectedShapeCopy, pos)
+            #     self.repaint()
+            # elif self.selectedShape:
+            #     self.selectedShapeCopy = self.selectedShape.copy()
+            #     self.repaint()
+            # return
+
         # Polygon drawing.
         if self.drawing():
             self.overrideCursor(CURSOR_DRAW)
@@ -133,17 +155,6 @@ class Canvas(QWidget):
             else:
                 self.prevPoint = pos
             self.repaint()
-            return
-
-        # Polygon copy moving.
-        if Qt.RightButton & ev.buttons():
-            if self.selectedShapeCopy and self.prevPoint:
-                self.overrideCursor(CURSOR_MOVE)
-                self.boundedMoveShape(self.selectedShapeCopy, pos)
-                self.repaint()
-            elif self.selectedShape:
-                self.selectedShapeCopy = self.selectedShape.copy()
-                self.repaint()
             return
 
         # Polygon/Vertex moving.
@@ -205,29 +216,35 @@ class Canvas(QWidget):
                 self.selectShapePoint(pos)
                 self.prevPoint = pos
                 self.repaint()
-        elif ev.button() == Qt.RightButton and self.editing():
-            self.selectShapePoint(pos)
-            self.prevPoint = pos
+        # elif ev.button() == Qt.RightButton and self.editing():
+        #     self.selectShapePoint(pos)
+        #     self.prevPoint = pos
+        #     self.repaint()
+        elif ev.button() == Qt.RightButton:
+            self.overrideCursor(CURSOR_GRAB)
+            self.prevPointDragImage = QCursor().pos()
             self.repaint()
 
     def mouseReleaseEvent(self, ev):
         if ev.button() == Qt.RightButton:
-            menu = self.menus[bool(self.selectedShapeCopy)]
-            self.restoreCursor()
-            if not menu.exec_(self.mapToGlobal(ev.pos()))\
-               and self.selectedShapeCopy:
-                # Cancel the move by deleting the shadow copy.
-                self.selectedShapeCopy = None
-                self.repaint()
+            # menu = self.menus[bool(self.selectedShapeCopy)]
+            # self.restoreCursor()
+            # if not menu.exec_(self.mapToGlobal(ev.pos()))\
+            #    and self.selectedShapeCopy:
+            #     # Cancel the move by deleting the shadow copy.
+            #     self.selectedShapeCopy = None
+            #     self.repaint()
+            self.overrideCursor(CURSOR_POINT)
         elif ev.button() == Qt.LeftButton and self.selectedShape:
             if self.selectedVertex():
                 self.overrideCursor(CURSOR_POINT)
             else:
                 self.overrideCursor(CURSOR_GRAB)
         elif ev.button() == Qt.LeftButton:
-            pos = self.transformPos(ev.pos())
-            if self.drawing():
-                self.handleDrawing(pos)
+            pass
+            # pos = self.transformPos(ev.pos())
+            # if self.drawing():
+            #     self.handleDrawing(pos)
 
     def endMove(self, copy=False):
         assert self.selectedShape and self.selectedShapeCopy
@@ -394,6 +411,24 @@ class Canvas(QWidget):
         if not self.boundedMoveShape(shape, point - offset):
             self.boundedMoveShape(shape, point + offset)
 
+    def drawReverseRect(self, p, rectPoint, imagePoint):
+        # up
+        upTopLeftX, upTopLeftY = 0, 0
+        upWidth, upHeight = imagePoint[0], rectPoint[0][1]
+        p.drawRect(upTopLeftX, upTopLeftY, upWidth, upHeight)
+        # left
+        leftTopLeftX, leftTopLeftY = 0, rectPoint[0][1]
+        leftWidth, leftHeight = rectPoint[0][0], rectPoint[1][1] - rectPoint[0][1]
+        p.drawRect(leftTopLeftX, leftTopLeftY, leftWidth, leftHeight)
+        # right
+        rightTopLeftX, rightTopLeftY = rectPoint[1][0], rectPoint[0][1]
+        rightWidth, rightHeight = imagePoint[0] - rectPoint[1][0], rectPoint[1][1] - rectPoint[0][1]
+        p.drawRect(rightTopLeftX, rightTopLeftY, rightWidth, rightHeight)
+        # down
+        downTopLeftX, downTopLeftY = 0, rectPoint[1][1]
+        downWidth, downHeight = imagePoint[0], imagePoint[1] - rectPoint[1][1]
+        p.drawRect(downTopLeftX, downTopLeftY, downWidth, downHeight)
+
     def paintEvent(self, event):
         if not self.pixmap:
             return super(Canvas, self).paintEvent(event)
@@ -425,13 +460,19 @@ class Canvas(QWidget):
             rightBottom = self.line[1]
             rectWidth = rightBottom.x() - leftTop.x()
             rectHeight = rightBottom.y() - leftTop.y()
-            p.setPen(self.drawingRectColor)
-            brush = QBrush(Qt.BDiagPattern)
+            # p.setPen(self.drawingRectColor)
+            p.setPen(self.drawingRectPen)
+            # brush = QBrush(Qt.BDiagPattern)
+            brush = QBrush(self.drawingRectColor, Qt.SolidPattern)
             p.setBrush(brush)
-            p.drawRect(leftTop.x(), leftTop.y(), rectWidth, rectHeight)
+            # p.drawRect(leftTop.x(), leftTop.y(), rectWidth, rectHeight)
+            rectPoint = ((leftTop.x(), leftTop.y()), (leftTop.x() + rectWidth, leftTop.y() + rectHeight))
+            imagePoint = (self.pixmap.width(), self.pixmap.height())
+            self.drawReverseRect(p, rectPoint, imagePoint)
 
         if self.drawing() and not self.prevPoint.isNull() and not self.outOfPixmap(self.prevPoint):
-            p.setPen(QColor(0, 0, 0))
+            pen = QPen(Qt.black, 0, Qt.SolidLine)
+            p.setPen(pen)
             p.drawLine(self.prevPoint.x(), 0, self.prevPoint.x(), self.pixmap.height())
             p.drawLine(0, self.prevPoint.y(), self.pixmap.width(), self.prevPoint.y())
 
@@ -557,21 +598,34 @@ class Canvas(QWidget):
             h_delta = delta.x()
             v_delta = delta.y()
 
-        mods = ev.modifiers()
-        if Qt.ControlModifier == int(mods) and v_delta:
-            self.zoomRequest.emit(v_delta)
-        else:
-            v_delta and self.scrollRequest.emit(v_delta, Qt.Vertical)
-            h_delta and self.scrollRequest.emit(h_delta, Qt.Horizontal)
+        # print(h_delta, v_delta)
+        self.zoomRequest.emit(v_delta)
+
+        # mods = ev.modifiers()
+        # if Qt.ControlModifier == int(mods) and v_delta:
+        #     self.zoomRequest.emit(v_delta)
+        # else:
+        #     v_delta and self.scrollRequest.emit(v_delta, Qt.Vertical)
+        #     h_delta and self.scrollRequest.emit(h_delta, Qt.Horizontal)
         ev.accept()
 
     def keyPressEvent(self, ev):
         key = ev.key()
-        if key == Qt.Key_Escape and self.current:
+        # if key == Qt.Key_Escape and self.current:
+        #     print('ESC press')
+        #     self.current = None
+        #     self.drawingPolygon.emit(False)
+        #     self.update()
+        if key == Qt.Key_Escape:
             print('ESC press')
-            self.current = None
-            self.drawingPolygon.emit(False)
-            self.update()
+            if self.current:
+                self.current = None
+                self.drawingPolygon.emit(False)
+                self.update()
+            else:
+                self.setEditing(True)
+                self.parent().window().actions.create.setEnabled(True)
+                self.update()
         elif key == Qt.Key_Return and self.canCloseShape():
             self.finalise()
         elif key == Qt.Key_Left and self.selectedShape:

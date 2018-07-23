@@ -29,12 +29,12 @@ class LabelDialog(QDialog):
 
         layout = QVBoxLayout()
         layout.addWidget(self.edit)
-        self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
-        bb.button(BB.Ok).setIcon(newIcon('done'))
-        bb.button(BB.Cancel).setIcon(newIcon('undo'))
-        bb.accepted.connect(self.validate)
-        bb.rejected.connect(self.reject)
-        layout.addWidget(bb)
+        # self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
+        # bb.button(BB.Ok).setIcon(newIcon('done'))
+        # bb.button(BB.Cancel).setIcon(newIcon('undo'))
+        # bb.accepted.connect(self.validate)
+        # bb.rejected.connect(self.reject)
+        # layout.addWidget(bb)
 
         if listItem is not None and len(listItem) > 0:
             self.listWidget = QListWidget(self)
@@ -61,6 +61,8 @@ class LabelDialog(QDialog):
         except AttributeError:
             # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
             self.edit.setText(self.edit.text())
+        if self.edit.hasFocus():
+            self.validate()
 
     def popUp(self, text='', move=True):
         self.edit.setText(text)
@@ -77,7 +79,9 @@ class LabelDialog(QDialog):
             # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
             text = tQListWidgetItem.text().strip()
         self.edit.setText(text)
+        self.validate()
         
     def listItemDoubleClick(self, tQListWidgetItem):
         self.listItemClick(tQListWidgetItem)
-        self.validate()
+        # self.validate()
+
