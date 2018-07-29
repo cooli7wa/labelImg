@@ -93,7 +93,7 @@ cmd 终端中进入 labelImg 目录，并输入
     python labelImg.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 ```
 
-### macOs下安装
+### macOS下安装
 
 - Python 2 + Qt4
 ```bash
@@ -115,7 +115,7 @@ python  labelImg.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 
 ### License
 
-Free software: [MIT license](https://github.com/cooli7wa/labelImg/LICENSE)
+Free software: [MIT license](https://github.com/cooli7wa/labelImg/blob/master/LICENSE)
 
 本工具 fork 自 [Tzutalin LabelImg](https://github.com/tzutalin/labelImg)，并做了一些易用性修改。
 
